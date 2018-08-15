@@ -5,16 +5,22 @@ import { AppComponent } from './app.component';
 import { QuestionShowComponent } from './question-show/question-show.component';
 import { QuestionGetComponent } from './question-get/question-get.component';
 import { UOWErrorHandler } from '../error/uow.error.handler';
+import { AppRoutingModule } from './/app-routing.module';
+import { MapComponent } from './map/map.component';
+import { MapSearchComponent } from './map-search/map-search.component';
 
 @NgModule({
   declarations: [
     AppComponent,
     QuestionShowComponent,
-    QuestionGetComponent
+    QuestionGetComponent,
+    MapComponent,
+    MapSearchComponent
   ],
   imports: [
     BrowserModule,
-    HttpClientModule
+    HttpClientModule,
+    AppRoutingModule
   ],
   providers: [{provide: ErrorHandler, useClass: UOWErrorHandler}],
   bootstrap: [AppComponent]

@@ -20,6 +20,10 @@ export const Config = {
 
     // URLs
     questionGet:  'http://bluemaxstudios.com/questionnaire/questions?_format=json',
-    questionPost: 'http://bluemaxstudios.com/questionnaire/submit?_format=json'
+    questionPost: 'http://bluemaxstudios.com/questionnaire/submit?_format=json',
+
+    // Temporary using Google API. Security problem: the API key is open to entire world.
+    // Need to deploy from server-side
+    addr2coord:   'https://nominatim.openstreetmap.org/search?format=json&limit=1'
   }
 };

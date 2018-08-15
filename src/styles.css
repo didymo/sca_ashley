@@ -1,1 +1,7 @@
 /* You can add global styles to this file, and also import other style files */
+
+/* OpenLayers CSS */
+.ol-dragbox {
+  background-color: rgba(255,255,255,0.4);
+  border-color: rgba(100,150,0,1);
+}
