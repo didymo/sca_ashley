@@ -1,10 +1,13 @@
+/**
+ *  OpenLayers map init. and interaction
+ */
+
 declare var ol: any;
 import { Component, OnInit } from '@angular/core';
 import { Addr2coordService } from '../services/addr2coord.service';
 import {Map, View} from 'ol';
 import {fromLonLat, toLonLat} from 'ol/proj.js';
 import {Coordinates} from '../classes/coordinates';
-
 import {platformModifierKeyOnly} from 'ol/events/condition.js';
 import GeoJSON from 'ol/format/GeoJSON.js';
 import {DragBox, Select} from 'ol/interaction.js';
@@ -22,100 +25,106 @@ import {transform} from 'ol/proj';
 
 export class MapSearchComponent implements OnInit {
 
-  protected map: any = null;
-
-  value: string  = null;
-
+  protected map:   any         = null;
+  public    value: string      = null;
   protected coord: Coordinates = {
-   latitude: 0,
+   latitude:  0,
    longitude: 0,
-   zoom: 0
+   zoom:      0
   };
+  protected dragbox: DragBox   = null;
 
-  protected dragbox: DragBox = null;
+  constructor(
+    private geoCoder: Addr2coordService
+  )
+  {
+    // Bind method to $this
+    this.handlerDragboxStart = this.handlerDragboxStart.bind(this);
+    this.handlerDragboxEnd   = this.handlerDragboxEnd.bind(this);
+  }
 
- constructor(
-   private geoCoder: Addr2coordService
- ) {
-   this.handlerDragboxStart = this.handlerDragboxStart.bind(this);
-   this.handlerDragboxEnd   = this.handlerDragboxEnd.bind(this);
- }
+  ngOnInit() {
 
- ngOnInit() {
+    // Init. Map
+    let vectorSource = new VectorSource({
+      url: 'data/geojson/countries.geojson',
+      format: new GeoJSON()
+    });
 
-   let vectorSource = new VectorSource({
-     url: 'data/geojson/countries.geojson',
-     format: new GeoJSON()
-   });
+    this.map = new Map({
+      layers: [
+        new TileLayer({
+          source: new OSM()
+        }),
+        new VectorLayer({
+          source: vectorSource
+        })
+      ],
+      target: 'map',
+      view: new View({
+        center: transform([134.489563, -25.734968], 'EPSG:4326', 'EPSG:3857'),
+        zoom: 4
+      })
+    });
 
-   this.map = new Map({
-     layers: [
-       new TileLayer({
-         source: new OSM()
-       }),
-       new VectorLayer({
-         source: vectorSource
-       })
-     ],
-     target: 'map',
-     view: new View({
-       center: transform([134.489563, -25.734968], 'EPSG:4326', 'EPSG:3857'),
-       zoom: 4
-     })
-   });
+    var select = new Select();
+    this.map.addInteraction(select);
+    var selectedFeatures = select.getFeatures();
 
-   // a normal select interaction to handle click
-   var select = new Select();
-   this.map.addInteraction(select);
+    this.dragbox = new DragBox({
+      condition: platformModifierKeyOnly
+    });
+    this.map.addInteraction(this.dragbox);
 
-   var selectedFeatures = select.getFeatures();
+    // Bind event listeners
+    this.dragbox.on('boxend', this.handlerDragboxEnd);
+    this.dragbox.on('boxstart', this.handlerDragboxStart);
+  }
 
-   // a DragBox interaction used to select features by drawing boxes
-   this.dragbox = new DragBox({
-     condition: platformModifierKeyOnly
-   });
+  // Drag event handler - start
+  handlerDragboxStart()
+  {
 
-   this.map.addInteraction(this.dragbox);
+  }
 
-   this.dragbox.on('boxend', this.handlerDragboxEnd);
+  // Drag event handler - end
+  handlerDragboxEnd()
+  {
+    let geometry = this.dragbox.getGeometry();
+    this.map.getView().fit(geometry)
+  }
 
-   // clear selection when drawing a new box and when clicking on the map
-   this.dragbox.on('boxstart', this.handlerDragboxStart);
- }
+  // Search bar input event listener
+  handlerInput(event)
+  {
+    // Get coordinates
+    let address = event.target.value;
+    this.geoCoder.get(address).subscribe(res => {
+      this.coord = {
+        latitude:  Number(res[0].lat),
+        longitude: Number(res[0].lon),
+        zoom: 13
+      };
+      this.updateCoord();
+    });
+    event.preventDefault();
+  }
 
- handlerDragboxStart()
- {
+  // Prevent Searchbar default submit action
+  handlerSubmit(event)
+  {
+    event.preventDefault();
+  }
 
- }
+  // Update map accroding to search bar
+  updateCoord()
+  {
+    this.map.setView(
+      new View({
+        center:  ol.proj.transform([this.coord.longitude, this.coord.latitude], 'EPSG:4326', 'EPSG:3857'),
+        zoom: this.coord.zoom
+      })
+    );
+  }
 
- handlerDragboxEnd()
- {
-   let geometry = this.dragbox.getGeometry();
-   this.map.getView().fit(geometry)
- }
-
- handlerInput(event)
- {
-   // Get coordinates
-   let address = event.target.value;
-   this.geoCoder.get(address).subscribe(res => {
-       this.coord = {
-         latitude:  Number(res[0].lat),
-         longitude: Number(res[0].lon),
-         zoom: 13
-       };
-       this.updateCoord();
-  });
- }
-
- updateCoord()
- {
-   this.map.setView(
-     new View({
-      center:  ol.proj.transform([this.coord.longitude, this.coord.latitude], 'EPSG:4326', 'EPSG:3857'),
-      zoom: this.coord.zoom
-    })
-  );
- }
-
-}
+};

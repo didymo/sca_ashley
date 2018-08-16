@@ -1,3 +1,7 @@
+/**
+ * Human-reabable address to coordinate convertor
+ */
+
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
@@ -7,6 +11,7 @@ import { Config } from '../../config';
 @Injectable({
   providedIn: 'root'
 })
+
 export class Addr2coordService {
 
   api = Config.api.addr2coord;
