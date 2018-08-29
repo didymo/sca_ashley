@@ -41,6 +41,7 @@ export class MapSearchComponent implements OnInit {
     // Bind method to $this
     this.handlerDragboxStart = this.handlerDragboxStart.bind(this);
     this.handlerDragboxEnd   = this.handlerDragboxEnd.bind(this);
+    this.resizeMap           = this.resizeMap.bind(this);
   }
 
   ngOnInit() {
@@ -91,7 +92,26 @@ export class MapSearchComponent implements OnInit {
   handlerDragboxEnd()
   {
     let geometry = this.dragbox.getGeometry();
-    this.map.getView().fit(geometry)
+
+    this.resizeMap(geometry);
+
+    this.map.getView().fit(geometry);
+  }
+
+  resizeMap(geometry)
+  {
+    // Get dragbox width & height
+    let dragboxHeight = Math.round(Math.abs(geometry.flatCoordinates[3] - geometry.flatCoordinates[1]));
+    let dragboxWidth  = Math.round(Math.abs(geometry.flatCoordinates[4] - geometry.flatCoordinates[0]));
+
+    // Get current map size
+    let mapDom = document.getElementById('map');
+    let width  = mapDom.clientWidth;
+    let height = mapDom.clientHeight;
+
+    // Resize map
+    mapDom.setAttribute("style", `width: ${width}px; height: ${width*(dragboxHeight/dragboxWidth)}px`);
+    this.map.updateSize();
   }
 
   // Search bar input event listener
