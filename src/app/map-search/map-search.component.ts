@@ -1,21 +1,7 @@
-/**
- *  OpenLayers map init. and interaction
- */
-
-declare var ol: any;
 import { Component, OnInit } from '@angular/core';
 import { Addr2coordService } from '../services/addr2coord.service';
-import {Map, View} from 'ol';
-import {fromLonLat, toLonLat} from 'ol/proj.js';
+import { CreateTMPService } from '../services/create-tmp.service';
 import {Coordinates} from '../classes/coordinates';
-import {platformModifierKeyOnly} from 'ol/events/condition.js';
-import GeoJSON from 'ol/format/GeoJSON.js';
-import {DragBox, Select} from 'ol/interaction.js';
-import {Tile as TileLayer, Vector as VectorLayer} from 'ol/layer.js';
-import Polygon from 'ol/geom/Polygon.js';
-import Draw, {createRegularPolygon, createBox} from 'ol/interaction/Draw.js';
-import {OSM, Vector as VectorSource} from 'ol/source.js';
-import {transform} from 'ol/proj';
 
 @Component({
  selector: 'app-map-search',
@@ -26,92 +12,67 @@ import {transform} from 'ol/proj';
 export class MapSearchComponent implements OnInit {
 
   protected map:   any         = null;
-  public    value: string      = null;
   protected coord: Coordinates = {
    latitude:  0,
    longitude: 0,
    zoom:      0
   };
-  protected dragbox: DragBox   = null;
 
   constructor(
-    private geoCoder: Addr2coordService
+    private geoCoder: Addr2coordService,
+    private postTMP: CreateTMPService
   )
   {
-    // Bind method to $this
-    this.handlerDragboxStart = this.handlerDragboxStart.bind(this);
-    this.handlerDragboxEnd   = this.handlerDragboxEnd.bind(this);
-    this.resizeMap           = this.resizeMap.bind(this);
+    this.ngOnInit = this.ngOnInit.bind(this);
+    this.createTMP  = this.createTMP.bind(this);
+    this.handlerInput = this.handlerInput.bind(this);
+    this.handlerSubmit = this.handlerSubmit.bind(this);
+    this.updateCoord = this.updateCoord.bind(this);
   }
 
   ngOnInit() {
 
-    // Init. Map
-    let vectorSource = new VectorSource({
-      url: 'data/geojson/countries.geojson',
-      format: new GeoJSON()
+    this.map = new L.Map('map', {selectArea: true });
+
+  	var osmUrl='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  	var osmAttrib='Map data © <a href="https://openstreetmap.org">OpenStreetMap</a> contributors';
+  	var osm = new L.TileLayer(osmUrl, {minZoom: 1, maxZoom: 40, attribution: osmAttrib});
+
+  	this.map.setView(new L.LatLng(-25.734968, 134.489563),4);
+  	this.map.addLayer(osm);
+
+    this.map.on('areaselected', (e) => {
+      let coor = e.bounds.toBBoxString().split(','); // lon, lat, lon, lat
+      let dragboxHeight = Math.abs(Number(coor[3]) - Number(coor[1]));
+      let dragboxWidth  = Math.abs(Number(coor[2]) - Number(coor[0]));
+
+      let mapDom = document.getElementById('map');
+      let width  = mapDom.clientWidth;
+      let height = mapDom.clientHeight;
+
+      // Resize map
+      // mapDom.setAttribute("style", `width: ${width}px; height: ${width*(dragboxHeight/dragboxWidth)}px;`);
+
+      mapDom.style.width = width + 'px';
+      mapDom.style.height = (width*(dragboxHeight/dragboxWidth)) + 'px';
+      this.map.invalidateSize();
+      this.map.fitBounds(e.bounds);
+
+      let tmp = {
+        'name': 'testerTMP',
+        "leftTop":     {'latitude': Number(coor[1]), 'longitude': Number(coor[0])},
+        "rightBottom": {'latitude': Number(coor[3]), 'longitude': Number(coor[2])}
+      };
+      this.createTMP(tmp);
     });
-
-    this.map = new Map({
-      layers: [
-        new TileLayer({
-          source: new OSM()
-        }),
-        new VectorLayer({
-          source: vectorSource
-        })
-      ],
-      target: 'map',
-      view: new View({
-        center: transform([134.489563, -25.734968], 'EPSG:4326', 'EPSG:3857'),
-        zoom: 4
-      })
-    });
-
-    var select = new Select();
-    this.map.addInteraction(select);
-    var selectedFeatures = select.getFeatures();
-
-    this.dragbox = new DragBox({
-      condition: platformModifierKeyOnly
-    });
-    this.map.addInteraction(this.dragbox);
-
-    // Bind event listeners
-    this.dragbox.on('boxend', this.handlerDragboxEnd);
-    this.dragbox.on('boxstart', this.handlerDragboxStart);
   }
 
-  // Drag event handler - start
-  handlerDragboxStart()
+  createTMP(tmp)
   {
-
-  }
-
-  // Drag event handler - end
-  handlerDragboxEnd()
-  {
-    let geometry = this.dragbox.getGeometry();
-
-    this.resizeMap(geometry);
-
-    this.map.getView().fit(geometry);
-  }
-
-  resizeMap(geometry)
-  {
-    // Get dragbox width & height
-    let dragboxHeight = Math.round(Math.abs(geometry.flatCoordinates[3] - geometry.flatCoordinates[1]));
-    let dragboxWidth  = Math.round(Math.abs(geometry.flatCoordinates[4] - geometry.flatCoordinates[0]));
-
-    // Get current map size
-    let mapDom = document.getElementById('map');
-    let width  = mapDom.clientWidth;
-    let height = mapDom.clientHeight;
-
-    // Resize map
-    mapDom.setAttribute("style", `width: ${width}px; height: ${width*(dragboxHeight/dragboxWidth)}px`);
-    this.map.updateSize();
+    let res = null;
+    this.postTMP.post(tmp).subscribe(res => {
+      console.log(res);
+    });
   }
 
   // Search bar input event listener
@@ -139,12 +100,7 @@ export class MapSearchComponent implements OnInit {
   // Update map accroding to search bar
   updateCoord()
   {
-    this.map.setView(
-      new View({
-        center:  ol.proj.transform([this.coord.longitude, this.coord.latitude], 'EPSG:4326', 'EPSG:3857'),
-        zoom: this.coord.zoom
-      })
-    );
+    this.map.setView(new L.LatLng(this.coord.latitude, this.coord.longitude),this.coord.zoom);
   }
 
 };
